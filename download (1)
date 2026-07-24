@@ -1,0 +1,143 @@
+import { useState, useEffect, useCallback } from 'react';
+import { MasterExpenseItem, FinancialCategory, FunctionalCategory } from '../types';
+import { DEFAULT_MASTER_CATALOG } from '../data/masterCatalog';
+import { db, collection, doc, setDoc, onSnapshot } from '../lib/firebase';
+import { User } from 'firebase/auth';
+
+const LOCAL_STORAGE_CATALOG_KEY = 'pet_pwa_master_catalog';
+
+export function useMasterCatalog(user: User | null) {
+  const [catalog, setCatalog] = useState<MasterExpenseItem[]>(() => {
+    const local = localStorage.getItem(LOCAL_STORAGE_CATALOG_KEY);
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        return Array.isArray(parsed) ? parsed : DEFAULT_MASTER_CATALOG;
+      } catch (e) {
+        return DEFAULT_MASTER_CATALOG;
+      }
+    }
+    return DEFAULT_MASTER_CATALOG;
+  });
+
+  // Sync with Firestore if user logged in
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen to user's expense master catalog
+    const catalogRef = collection(db, 'users', user.uid, 'expense_master');
+    const unsubscribe = onSnapshot(
+      catalogRef,
+      (snapshot) => {
+        const firestoreItems: MasterExpenseItem[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          firestoreItems.push({
+            name: data.name,
+            financialCategory: data.financialCategory,
+            functionalCategory: data.functionalCategory,
+            userId: user.uid,
+          });
+        });
+
+        if (firestoreItems.length > 0) {
+          // Merge with default master catalog (firestore items override default)
+          const merged = [...DEFAULT_MASTER_CATALOG];
+          firestoreItems.forEach((fItem) => {
+            const idx = merged.findIndex((m) => m.name.toLowerCase() === fItem.name.toLowerCase());
+            if (idx >= 0) {
+              merged[idx] = fItem;
+            } else {
+              merged.push(fItem);
+            }
+          });
+          setCatalog(merged);
+          localStorage.setItem(LOCAL_STORAGE_CATALOG_KEY, JSON.stringify(merged));
+        }
+      },
+      (err) => {
+        console.warn('Firestore Master Catalog subscribe error:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Lookup function for Expense Name auto-fill (FR-3)
+  const getSuggestionForName = useCallback(
+    (nameInput: string): { financialCategory?: FinancialCategory; functionalCategory?: FunctionalCategory } | null => {
+      if (!nameInput || !nameInput.trim()) return null;
+      const clean = nameInput.trim().toLowerCase();
+
+      // Direct match
+      const exact = catalog.find((c) => c.name.toLowerCase() === clean);
+      if (exact) {
+        return {
+          financialCategory: exact.financialCategory,
+          functionalCategory: exact.functionalCategory,
+        };
+      }
+
+      // Partial match
+      const partial = catalog.find((c) => c.name.toLowerCase().includes(clean) || clean.includes(c.name.toLowerCase()));
+      if (partial) {
+        return {
+          financialCategory: partial.financialCategory,
+          functionalCategory: partial.functionalCategory,
+        };
+      }
+
+      return null;
+    },
+    [catalog]
+  );
+
+  // Save/Update catalog item
+  const saveCatalogItem = async (item: MasterExpenseItem) => {
+    const cleanName = item.name.trim();
+    if (!cleanName) return;
+
+    const newItem: MasterExpenseItem = {
+      name: cleanName,
+      financialCategory: item.financialCategory,
+      functionalCategory: item.functionalCategory,
+      userId: user ? user.uid : 'local_guest',
+    };
+
+    // Update local state
+    setCatalog((prev) => {
+      const idx = prev.findIndex((p) => p.name.toLowerCase() === cleanName.toLowerCase());
+      let updated: MasterExpenseItem[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = newItem;
+      } else {
+        updated = [...prev, newItem];
+      }
+      localStorage.setItem(LOCAL_STORAGE_CATALOG_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    // Save to Firestore if user logged in
+    if (user) {
+      try {
+        const docId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const docRef = doc(db, 'users', user.uid, 'expense_master', docId);
+        await setDoc(docRef, {
+          name: cleanName,
+          financialCategory: item.financialCategory,
+          functionalCategory: item.functionalCategory,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error('Failed to save Master Catalog item to Firestore:', err);
+      }
+    }
+  };
+
+  return {
+    catalog,
+    getSuggestionForName,
+    saveCatalogItem,
+  };
+}

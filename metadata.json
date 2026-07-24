@@ -1,0 +1,12 @@
+# Gemini AI & Application Configuration
+GEMINI_API_KEY=""
+APP_URL="http://localhost:3000"
+
+# Firebase Project Credentials
+VITE_FIREBASE_PROJECT_ID="gen-lang-client-0217383881"
+VITE_FIREBASE_APP_ID="1:648323171362:web:4d24356fd47ba79a01767b"
+VITE_FIREBASE_API_KEY="AIzaSyC4LS4e8FAMVTSMgBMQOU8mwT4TN6LW4ug"
+VITE_FIREBASE_AUTH_DOMAIN="gen-lang-client-0217383881.firebaseapp.com"
+VITE_FIREBASE_FIRESTORE_DATABASE_ID="ai-studio-expensetrackerca-43fa1031-b9d5-4ccf-a0ca-034838c4f63a"
+VITE_FIREBASE_STORAGE_BUCKET="gen-lang-client-0217383881.firebasestorage.app"
+VITE_FIREBASE_MESSAGING_SENDER_ID="648323171362"

@@ -1,0 +1,160 @@
+import React from 'react';
+import { Download, FileSpreadsheet, FileText, Calendar, ShieldCheck, Printer } from 'lucide-react';
+import { Expense, DashboardStats } from '../types';
+import { exportExpensesCSV, exportExpensesPDF } from '../utils/reports';
+
+interface ReportsViewProps {
+  expenses: Expense[];
+  stats: DashboardStats;
+  currency: string;
+  userEmail?: string;
+}
+
+export const ReportsView: React.FC<ReportsViewProps> = ({
+  expenses,
+  stats,
+  currency,
+  userEmail,
+}) => {
+  const handleExportCSV = () => {
+    exportExpensesCSV(expenses, currency);
+  };
+
+  const handleExportPDF = () => {
+    exportExpensesPDF(expenses, stats, currency, userEmail);
+  };
+
+  return (
+    <div className="space-y-6 pb-12">
+      
+      {/* Header Banner */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+              <Download className="w-5 h-5 text-emerald-400" />
+              <span>Financial Reports & Data Export</span>
+            </h2>
+            <p className="text-xs text-slate-400">Generate downloadable CSV spreadsheets and formatted PDF summaries</p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold px-4 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>Export CSV</span>
+            </button>
+
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Download PDF Summary</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable Report Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Card 1: Monthly Financial Summary */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
+            <Calendar className="w-4 h-4 text-blue-400" />
+            <span>Monthly Financial Summary</span>
+          </h3>
+
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-slate-400">Total Monthly Expenditure:</span>
+              <span className="font-extrabold text-white text-sm">{currency}{stats.monthlyTotal.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-slate-400">Daily Average Spending:</span>
+              <span className="font-semibold text-slate-200">{currency}{stats.avgDailyExpense.toFixed(2)} / day</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-slate-400">Peak Spending Day:</span>
+              <span className="font-semibold text-slate-200">{stats.highestSpendingDay.date} ({currency}{stats.highestSpendingDay.amount.toFixed(2)})</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1">
+              <span className="text-slate-400">Total Expense Records:</span>
+              <span className="font-semibold text-slate-200">{stats.totalCount} items</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Needs vs Wants vs Desires Breakdown */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Financial Categorization Breakdown</span>
+          </h3>
+
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-emerald-400 font-semibold">• Needs:</span>
+              <span className="font-bold text-white">{currency}{stats.financialBreakdown.Need.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-blue-400 font-semibold">• Wants:</span>
+              <span className="font-bold text-white">{currency}{stats.financialBreakdown.Want.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span className="text-purple-400 font-semibold">• Desires:</span>
+              <span className="font-bold text-white">{currency}{stats.financialBreakdown.Desire.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-1">
+              <span className="text-slate-400 font-semibold">• Miscellaneous:</span>
+              <span className="font-bold text-white">{currency}{stats.financialBreakdown.Miscellaneous.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Full Audit Preview Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+        <h3 className="text-sm font-bold text-white">Full Expense Statement Log ({expenses.length} Records)</h3>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-800/80 text-slate-400 font-semibold uppercase border-b border-slate-700">
+              <tr>
+                <th className="py-3 px-3">Date</th>
+                <th className="py-3 px-3">Expense Name</th>
+                <th className="py-3 px-3">Financial Category</th>
+                <th className="py-3 px-3">Functional Category</th>
+                <th className="py-3 px-3">Payment Method</th>
+                <th className="py-3 px-3 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {expenses.map((e) => (
+                <tr key={e.id} className="hover:bg-slate-800/30">
+                  <td className="py-2.5 px-3 text-slate-400 font-mono">{e.date}</td>
+                  <td className="py-2.5 px-3 font-semibold text-white">{e.title}</td>
+                  <td className="py-2.5 px-3">{e.financialCategory}</td>
+                  <td className="py-2.5 px-3 text-slate-300">{e.functionalCategory}</td>
+                  <td className="py-2.5 px-3 text-slate-400">{e.paymentMethod}</td>
+                  <td className="py-2.5 px-3 text-right font-bold text-white">{currency}{e.amount.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+};

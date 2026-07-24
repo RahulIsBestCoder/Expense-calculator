@@ -1,0 +1,493 @@
+import React, { useState } from 'react';
+import { 
+  TrendingUp, 
+  Calendar, 
+  DollarSign, 
+  PieChart as PieIcon, 
+  BarChart2, 
+  Award, 
+  Layers, 
+  Plus, 
+  ChevronRight,
+  ArrowUpRight
+} from 'lucide-react';
+import { 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  AreaChart, 
+  Area,
+  CartesianGrid
+} from 'recharts';
+import { Expense, DashboardStats, FunctionalCategory } from '../types';
+import { FINANCIAL_CATEGORY_COLORS, FUNCTIONAL_CATEGORY_COLORS } from '../data/masterCatalog';
+
+interface DashboardViewProps {
+  stats: DashboardStats;
+  expenses: Expense[];
+  currency: string;
+  onOpenAddModal: () => void;
+  onViewAllExpenses: () => void;
+}
+
+export const DashboardView: React.FC<DashboardViewProps> = ({
+  stats,
+  expenses,
+  currency,
+  onOpenAddModal,
+  onViewAllExpenses,
+}) => {
+  const [trendRange, setTrendRange] = useState<'7days' | '30days' | '12months'>('7days');
+
+  // Prepare Pie Data for Needs vs Wants vs Desires
+  const financialPieData = [
+    { name: 'Need', value: stats.financialBreakdown.Need, color: FINANCIAL_CATEGORY_COLORS.Need },
+    { name: 'Want', value: stats.financialBreakdown.Want, color: FINANCIAL_CATEGORY_COLORS.Want },
+    { name: 'Desire', value: stats.financialBreakdown.Desire, color: FINANCIAL_CATEGORY_COLORS.Desire },
+    { name: 'Miscellaneous', value: stats.financialBreakdown.Miscellaneous, color: FINANCIAL_CATEGORY_COLORS.Miscellaneous },
+  ].filter((item) => item.value > 0);
+
+  const totalFinancialAmount = Math.max(1, financialPieData.reduce((acc, curr) => acc + curr.value, 0));
+
+  // Prepare Functional Category Chart Data
+  const functionalBarData = Object.entries(stats.functionalBreakdown)
+    .map(([category, amount]) => ({
+      category,
+      amount: Number(amount) || 0,
+      color: FUNCTIONAL_CATEGORY_COLORS[category as FunctionalCategory] || '#64748B',
+    }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  // Prepare Trend Data
+  const getTrendData = () => {
+    const dailyMap: Record<string, { total: number; Need: number; Want: number; Desire: number }> = {};
+    const now = new Date();
+    
+    let daysToLook = 7;
+    if (trendRange === '30days') daysToLook = 30;
+
+    if (trendRange === '12months') {
+      // Monthly aggregation
+      const monthMap: Record<string, number> = {};
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthMap[mKey] = 0;
+      }
+
+      expenses.forEach((e) => {
+        const mKey = e.date.substring(0, 7);
+        if (monthMap[mKey] !== undefined) {
+          monthMap[mKey] += Number(e.amount) || 0;
+        }
+      });
+
+      return Object.entries(monthMap).map(([mKey, amount]) => {
+        const [y, m] = mKey.split('-');
+        const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+        const label = dateObj.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        return { label, amount };
+      });
+    }
+
+    // Daily aggregation
+    for (let i = daysToLook - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      dailyMap[dateStr] = { total: 0, Need: 0, Want: 0, Desire: 0 };
+    }
+
+    expenses.forEach((e) => {
+      if (dailyMap[e.date]) {
+        dailyMap[e.date].total += Number(e.amount) || 0;
+        if (e.financialCategory === 'Need') dailyMap[e.date].Need += Number(e.amount) || 0;
+        if (e.financialCategory === 'Want') dailyMap[e.date].Want += Number(e.amount) || 0;
+        if (e.financialCategory === 'Desire') dailyMap[e.date].Desire += Number(e.amount) || 0;
+      }
+    });
+
+    return Object.entries(dailyMap).map(([dateStr, val]) => {
+      const dateObj = new Date(dateStr);
+      const label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return {
+        label,
+        dateStr,
+        amount: val.total,
+        Need: val.Need,
+        Want: val.Want,
+        Desire: val.Desire,
+      };
+    });
+  };
+
+  const trendData = getTrendData();
+
+  return (
+    <div className="space-y-6 pb-12">
+      
+      {/* Overview Cards (Multi-period totals: Today, Weekly, Monthly, Yearly) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Today Spending */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Today Spending</span>
+            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {currency}{stats.todayTotal.toFixed(2)}
+          </div>
+          <div className="mt-2 flex items-center text-[11px] text-slate-400">
+            <span>Recorded for today</span>
+          </div>
+        </div>
+
+        {/* Weekly Spending */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">This Week</span>
+            <div className="p-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl">
+              <Calendar className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {currency}{stats.weeklyTotal.toFixed(2)}
+          </div>
+          <div className="mt-2 flex items-center text-[11px] text-slate-400">
+            <span>Current week total</span>
+          </div>
+        </div>
+
+        {/* Monthly Spending */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">This Month</span>
+            <div className="p-2 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {currency}{stats.monthlyTotal.toFixed(2)}
+          </div>
+          <div className="mt-2 flex items-center text-[11px] text-slate-400">
+            <span>Avg {currency}{stats.avgDailyExpense.toFixed(2)} / day</span>
+          </div>
+        </div>
+
+        {/* Yearly Total */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Yearly Total</span>
+            <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
+              <Award className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {currency}{stats.yearlyTotal.toFixed(2)}
+          </div>
+          <div className="mt-2 flex items-center text-[11px] text-slate-400">
+            <span>Peak Day: {stats.highestSpendingDay.date} ({currency}{stats.highestSpendingDay.amount.toFixed(0)})</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Main Grid: Needs vs Wants vs Desires + Functional Category Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Needs vs Wants vs Desires Donut Chart Card (FR-4 & FR-6) */}
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <PieIcon className="w-4 h-4 text-emerald-400" />
+                  <span>Needs vs Wants vs Desires</span>
+                </h3>
+                <p className="text-xs text-slate-400">Financial discipline breakdown</p>
+              </div>
+              <span className="text-xs font-semibold bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">
+                {stats.totalCount} Records
+              </span>
+            </div>
+
+            {/* Donut Chart */}
+            <div className="h-56 w-full relative flex items-center justify-center">
+              {financialPieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={financialPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {financialPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="#0f172a" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val: any) => `${currency}${Number(val).toFixed(2)}`}
+                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center text-xs text-slate-500">
+                  No expense records found yet
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legend Cards */}
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-800">
+            <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 text-xs text-emerald-400 font-semibold mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Needs</span>
+              </div>
+              <div className="text-sm font-bold text-white">
+                {currency}{stats.financialBreakdown.Need.toFixed(2)}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {((stats.financialBreakdown.Need / totalFinancialAmount) * 100).toFixed(1)}% of total
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 text-xs text-blue-400 font-semibold mb-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span>Wants</span>
+              </div>
+              <div className="text-sm font-bold text-white">
+                {currency}{stats.financialBreakdown.Want.toFixed(2)}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {((stats.financialBreakdown.Want / totalFinancialAmount) * 100).toFixed(1)}% of total
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 text-xs text-purple-400 font-semibold mb-1">
+                <span className="w-2 h-2 rounded-full bg-purple-500" />
+                <span>Desires</span>
+              </div>
+              <div className="text-sm font-bold text-white">
+                {currency}{stats.financialBreakdown.Desire.toFixed(2)}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {((stats.financialBreakdown.Desire / totalFinancialAmount) * 100).toFixed(1)}% of total
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 text-xs text-slate-400 font-semibold mb-1">
+                <span className="w-2 h-2 rounded-full bg-slate-500" />
+                <span>Misc</span>
+              </div>
+              <div className="text-sm font-bold text-white">
+                {currency}{stats.financialBreakdown.Miscellaneous.toFixed(2)}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {((stats.financialBreakdown.Miscellaneous / totalFinancialAmount) * 100).toFixed(1)}% of total
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Functional Category Spending Bar Chart Card (FR-5 & FR-6) */}
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <BarChart2 className="w-4 h-4 text-teal-400" />
+                  <span>Functional Categories</span>
+                </h3>
+                <p className="text-xs text-slate-400">Food, Transport, Bills, Health, Shopping & more</p>
+              </div>
+            </div>
+
+            {/* Horizontal or Vertical Bar chart */}
+            <div className="h-64 w-full">
+              {functionalBarData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={functionalBarData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis
+                      dataKey="category"
+                      stroke="#64748b"
+                      fontSize={10}
+                      tickLine={false}
+                      interval={0}
+                      angle={-25}
+                      textAnchor="end"
+                    />
+                    <YAxis stroke="#64748b" fontSize={10} tickLine={false} />
+                    <Tooltip
+                      formatter={(val: any) => `${currency}${Number(val).toFixed(2)}`}
+                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                      {functionalBarData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-500">
+                  No category data recorded
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-400 pt-3 border-t border-slate-800 flex items-center justify-between">
+            <span>Top Category: <strong className="text-white">{functionalBarData[0]?.category || 'N/A'}</strong></span>
+            <span>Total Categories Tracked: <strong className="text-white">{functionalBarData.length}</strong></span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Spending Trend Area Chart */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center space-x-2">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span>Spending Trend Analysis</span>
+            </h3>
+            <p className="text-xs text-slate-400">Track expenditure fluctuations over selected periods</p>
+          </div>
+
+          {/* Time range selector */}
+          <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700/80">
+            <button
+              onClick={() => setTrendRange('7days')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                trendRange === '7days' ? 'bg-emerald-500 text-slate-950 font-semibold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              onClick={() => setTrendRange('30days')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                trendRange === '30days' ? 'bg-emerald-500 text-slate-950 font-semibold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              30 Days
+            </button>
+            <button
+              onClick={() => setTrendRange('12months')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                trendRange === '12months' ? 'bg-emerald-500 text-slate-950 font-semibold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              12 Months
+            </button>
+          </div>
+        </div>
+
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} />
+              <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
+              <Tooltip
+                formatter={(val: any) => `${currency}${Number(val).toFixed(2)}`}
+                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+              />
+              <Area type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAmount)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Recent Expenses Quick Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-bold text-white">Recent Expenses</h3>
+            <p className="text-xs text-slate-400">Latest recorded transactions</p>
+          </div>
+          <button
+            onClick={onViewAllExpenses}
+            className="flex items-center space-x-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            <span>View All</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase">
+                <th className="pb-3 pl-2">Date</th>
+                <th className="pb-3">Expense Name</th>
+                <th className="pb-3">Financial</th>
+                <th className="pb-3">Functional</th>
+                <th className="pb-3">Payment</th>
+                <th className="pb-3 text-right pr-2">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {expenses.slice(0, 5).map((e) => (
+                <tr key={e.id} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="py-3 pl-2 text-slate-400 font-mono text-[11px]">{e.date}</td>
+                  <td className="py-3 font-semibold text-white">{e.title}</td>
+                  <td className="py-3">
+                    <span
+                      className={`px-2 py-0.5 rounded-md font-medium text-[10px] border ${
+                        e.financialCategory === 'Need'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : e.financialCategory === 'Want'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                          : e.financialCategory === 'Desire'
+                          ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {e.financialCategory}
+                    </span>
+                  </td>
+                  <td className="py-3 text-slate-300">{e.functionalCategory}</td>
+                  <td className="py-3 text-slate-400">{e.paymentMethod}</td>
+                  <td className="py-3 text-right pr-2 font-bold text-white">
+                    {currency}{e.amount.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+};

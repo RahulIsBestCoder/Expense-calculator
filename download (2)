@@ -1,0 +1,257 @@
+import React from 'react';
+import { Wallet, Plus, LogIn, LogOut, User, Cloud, CloudOff, RefreshCw, Calculator, BarChart3, ListFilter, BookOpen, Download } from 'lucide-react';
+import { UserProfile } from '../types';
+
+interface HeaderProps {
+  activeTab: 'dashboard' | 'expenses' | 'catalog' | 'reports' | 'calculator';
+  setActiveTab: (tab: 'dashboard' | 'expenses' | 'catalog' | 'reports' | 'calculator') => void;
+  onOpenAddModal: () => void;
+  userProfile: UserProfile | null;
+  onLogin: () => void;
+  onLogout: () => void;
+  currency: string;
+  setCurrency: (c: string) => void;
+  syncStatus: 'synced' | 'local' | 'syncing' | 'error';
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  activeTab,
+  setActiveTab,
+  onOpenAddModal,
+  userProfile,
+  onLogin,
+  onLogout,
+  currency,
+  setCurrency,
+  syncStatus,
+}) => {
+  return (
+    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          
+          {/* Logo & Brand */}
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+            <div className="p-2 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl text-slate-950 font-bold shadow-lg shadow-emerald-500/20">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-lg tracking-tight text-white">Expense Tracker</span>
+                <span className="text-[10px] font-semibold uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  PWA
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 hidden sm:block">Master Catalog & Category Analytics</p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation Tabs */}
+          <nav className="hidden md:flex items-center space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('expenses')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'expenses'
+                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <ListFilter className="w-4 h-4" />
+              <span>Expenses Log</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('catalog')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'catalog'
+                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Master Catalog</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'reports'
+                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Download className="w-4 h-4" />
+              <span>Reports</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('calculator')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'calculator'
+                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Calculator className="w-4 h-4" />
+              <span>Calculator</span>
+            </button>
+          </nav>
+
+          {/* Right Actions: Currency, Sync Indicator, Quick Add, Auth */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            
+            {/* Currency Selector */}
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="bg-slate-800 text-slate-200 text-xs font-medium border border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              title="Select Currency"
+            >
+              <option value="$">$ USD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="₹">₹ INR</option>
+              <option value="¥">¥ JPY</option>
+              <option value="C$">C$ CAD</option>
+              <option value="A$">A$ AUD</option>
+            </select>
+
+            {/* Sync Badge */}
+            <div
+              className={`hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                syncStatus === 'synced'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : syncStatus === 'syncing'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : 'bg-slate-800 border-slate-700 text-slate-400'
+              }`}
+              title={syncStatus === 'synced' ? 'Real-time Firestore Sync Active' : 'Offline Local Storage'}
+            >
+              {syncStatus === 'synced' ? (
+                <>
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Cloud Synced</span>
+                </>
+              ) : syncStatus === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <CloudOff className="w-3.5 h-3.5" />
+                  <span>Local Mode</span>
+                </>
+              )}
+            </div>
+
+            {/* Quick Record Expense Button */}
+            <button
+              onClick={onOpenAddModal}
+              className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-3 py-1.5 rounded-lg text-xs transition-all shadow-md active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Expense</span>
+            </button>
+
+            {/* Auth Profile / Google Sign-In */}
+            {userProfile ? (
+              <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
+                {userProfile.photoURL ? (
+                  <img
+                    src={userProfile.photoURL}
+                    alt={userProfile.displayName || 'User'}
+                    className="w-7 h-7 rounded-full border border-emerald-500/50"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
+                    {(userProfile.displayName || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onLogin}
+                className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+                title="Sign in with Google to sync across devices"
+              >
+                <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Google Sign In</span>
+              </button>
+            )}
+
+          </div>
+        </div>
+
+        {/* Mobile Navigation Bar */}
+        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800 text-xs">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg ${
+              activeTab === 'dashboard' ? 'text-emerald-400 font-semibold' : 'text-slate-400'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 mb-0.5" />
+            <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg ${
+              activeTab === 'expenses' ? 'text-emerald-400 font-semibold' : 'text-slate-400'
+            }`}
+          >
+            <ListFilter className="w-4 h-4 mb-0.5" />
+            <span>Expenses</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('catalog')}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg ${
+              activeTab === 'catalog' ? 'text-emerald-400 font-semibold' : 'text-slate-400'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 mb-0.5" />
+            <span>Catalog</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg ${
+              activeTab === 'reports' ? 'text-emerald-400 font-semibold' : 'text-slate-400'
+            }`}
+          >
+            <Download className="w-4 h-4 mb-0.5" />
+            <span>Reports</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('calculator')}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg ${
+              activeTab === 'calculator' ? 'text-emerald-400 font-semibold' : 'text-slate-400'
+            }`}
+          >
+            <Calculator className="w-4 h-4 mb-0.5" />
+            <span>Calculator</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+  );
+};
